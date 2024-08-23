@@ -1,24 +1,46 @@
 package silence
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 )
 
+const (
+	CommandKey = "command"
+	ErrorKey   = "error"
+	StatusKey  = "status"
+)
+
+const (
+	ErrorStatus = 1
+)
+
 func Run(app *App) {
-	app.InitLogger(os.Stdout, slog.LevelInfo)
-	app.Log.Info("Silence is starting", slog.String("command", app.cmd.Name()))
+	err := app.initApp()
+	if err != nil {
+		app.Log.Error(
+			"failed to inicialize, exiting with error status",
+			slog.Int(StatusKey, ErrorStatus),
+			slog.String(ErrorKey, err.Error()),
+		)
+		os.Exit(ErrorStatus)
+	}
 
-	app.WorkDir = os.
-}
+	// TODO: Add locking mechanism to prevent two instances running at once.
 
-// Try to create a file, that will signal that an instace of this app is running.
-// If the file alredy exists, then the function should return an error.
-// Do not continue program execution if non nil error is returned.
-//
-// If the file exists even when no instance is running, then it is safe to delete it.
-// TODO: The file should contain timestamp and PID of the other process,
-// so we can check if it still exists.
-func CreateLock() error {
+	app.Log.Info("app is inicialized")
 
+	job, err := NewJob(app, DefaultJobConfigPath)
+	if err != nil {
+		app.Log.Error(
+			"failed to create job, exiting with error status",
+			slog.Int(StatusKey, ErrorStatus),
+			slog.String(ErrorKey, err.Error()),
+		)
+	}
+
+	app.Log.Info(fmt.Sprintf("job %s was inicialized", job.Name))
+
+	err = job.run(app)
 }

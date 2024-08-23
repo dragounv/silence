@@ -14,7 +14,7 @@ Vstupy:
 
 - temlate Heritrix konfigurace
 - semínka - `seeds.txt`
-- konfigurace sklizní - `config.yaml | config.json`
+- konfigurace sklizní - `job.yaml | job.json`
 
 Výstupy:
 
@@ -29,16 +29,16 @@ Výstupy:
     - zpracování příkazové řádky
     - pokud je vyvolaný příkaz pro zpracování sklizní
         - inicializace slog.Logger
-        - kontrola zda již proces neběží (zda již neexistuje zámek)
+        - kontrola zda již proces neběží (zda již neexistuje zámek) **TODO**
             - pokud ano ukoči process
-        - vytvoření zámku
+        - vytvoření zámku **TODO**
         - inicializce App struktury
 
 2. Nahrát templaty, semínka a konfiguraci sklizně
 
     - načtení konfigurace
         - parsování konfigurace
-        - inicializace Config struktury
+        - inicializace Job struktury
             - doplnění chybějících a defaultních hodnot
     - inicializace klienta pro komunikaci s heritrixem
         - ping Heritrixu

@@ -10,24 +10,19 @@ import (
 var runCmd = &cobra.Command{
 	Use:   "run",
 	Short: "Run series of crawls according to configuration.",
-	Long: `Run series of crawls according to configuration.`,
-	Run: startApp,
+	Long:  `Run series of crawls according to configuration.`,
+	Run:   runApp,
 }
 
-func startApp(cmd *cobra.Command, args []string) {
-	silence.Run(silence.NewApp(cmd, args))
+var app = new(silence.App)
+
+func runApp(cmd *cobra.Command, args []string) {
+	silence.Run(app.InitCommand(cmd, args))
 }
 
 func init() {
 	rootCmd.AddCommand(runCmd)
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// runCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// runCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	workDirFlag := runCmd.Flags().String("work-dir", "", "Sets working directory")
+	app.WorkDirFlag = workDirFlag
 }
