@@ -1,6 +1,7 @@
 package silence
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -8,6 +9,7 @@ import (
 	"io"
 	"io/fs"
 	"log/slog"
+	"math"
 	"net/http"
 	"os"
 	"time"
@@ -64,8 +66,8 @@ func DefaultJob(path string) *Job {
 		SeedsPath:      "seeds.txt",
 		TemplatePath:   "crawler-beans.template",
 		CrawlerAddress: "localhost:7778",
-		MaxIterations: 20,
-		MaxLines: 64_000,
+		MaxIterations:  20,
+		MaxLines:       64_000,
 		Config:         new(JobConfig),
 	}
 }
@@ -82,13 +84,20 @@ func (job *Job) run(app *App) error {
 	if err != nil {
 		return err
 	}
+
+	err = job.runCrawls(app)
+	if err != nil {
+		return
+	}
+
+	return nil
 }
 
 func (job *Job) initCrawls(app *App) error {
 	if job.MaxIterations < 1 {
-		err := fmt.Errorf("error: max_iterations set to less than one")
+		err := fmt.Errorf("MaxIterations is set to less than one")
 		app.Log.Error(
-			"maax_iterations must be bigger than 0",
+			"MaxIterations must be bigger than 0",
 			slog.String(ErrorKey, err.Error()),
 		)
 		return err
@@ -104,7 +113,15 @@ func (job *Job) initCrawls(app *App) error {
 		return err
 	}
 
-	iterations := lines / job.MaxLines
+	if job.MaxLines < 1 {
+		err := fmt.Errorf("MaxLines is set to less than one")
+		app.Log.Error(
+			"MaxLines must be bigger than 0",
+			slog.String(ErrorKey, err.Error()),
+		)
+		return err
+	}
+	iterations := int(math.Ceil(float64(lines) / float64(job.MaxLines)))
 	if iterations > job.MaxIterations {
 		err := fmt.Errorf("too many iterations needed")
 		app.Log.Error(
@@ -125,16 +142,31 @@ func (job *Job) initCrawls(app *App) error {
 	}
 
 	crawls := make([]*Crawl, 0, iterations)
-	timestamp := time.Now().Format("20060102150405")
+	const timestampFormat = "20060102150405"
+	timestamp := time.Now().Format(timestampFormat)
 	for i := 0; i < cap(crawls); i++ {
-		crawls = append(crawls, NewCrawl(i, timestamp))
+		crawls = append(crawls, NewCrawl(i, timestamp, SeedsDirectory))
 	}
 
-	// TODO: Test that I can reach this part.
+	app.Log.Debug("", slog.Int("lines", lines), slog.Int("iterations", len(crawls)))
+
+	err = job.createSeedFiles(crawls)
+	if err != nil {
+		app.Log.Error(
+			"failed to create seed files for individual harvests",
+			slog.String(ErrorKey, err.Error()),
+		)
+	}
+
+	job.crawls = crawls
+
+	app.Log.Debug("Crawls initialized")
+	return nil
 }
 
 // Counts lines in file. It may ignore last line if it doesn't end with newline
-// but that is not important for our usecase.
+// but that is not important, becouse the information is only used to
+// determine number of harvests.
 func countLines(path string) (int, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -160,4 +192,79 @@ func countLines(path string) (int, error) {
 	}
 
 	return sum, nil
+}
+
+func (job *Job) createSeedFiles(crawls []*Crawl) error {
+	linesPerFile := job.MaxLines
+	seedsOrigin, err := os.Open(job.SeedsPath)
+	if err != nil {
+		return err
+	}
+	defer seedsOrigin.Close()
+
+	seedsScanner := bufio.NewScanner(seedsOrigin)
+
+	for _, crawl := range crawls {
+		seedsBatch, err := os.Create(crawl.SeedsFile)
+		if err != nil {
+			err = fmt.Errorf("failed to create file %s with error: %w", crawl.SeedsFile, err)
+			return err
+		}
+		defer seedsBatch.Close()
+
+		// Only owner and group can write
+		err = seedsBatch.Chmod(0664)
+		if err != nil {
+			err = fmt.Errorf("failed to change permissions to file %s with error: %w", crawl.SeedsFile, err)
+			return err
+		}
+
+		err = copyLines(seedsScanner, seedsBatch, linesPerFile)
+		if err != nil {
+			err = fmt.Errorf("failed to copyLines from %s to %s with error: %w", job.SeedsPath, crawl.SeedsFile, err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+func copyLines(linesIn *bufio.Scanner, linesOut io.Writer, linesPerFile int) error {
+	writer := bufio.NewWriter(linesOut)
+	i := 0
+	// Scan until linesPerFile, scanner hits EOF or scanner encouters error.
+	for i < linesPerFile && linesIn.Scan() {
+		line := linesIn.Bytes()
+		_, err := writer.Write(line)
+		if err != nil {
+			return err
+		}
+		err = writer.WriteByte('\n')
+		if err != nil {
+			return err
+		}
+		i++
+	}
+	if linesIn.Err() != nil {
+		return linesIn.Err()
+	}
+	return writer.Flush()
+}
+
+func (job *Job) runCrawls(app *App) error {
+	for _, crawl := range job.crawls {
+		app.Log.Info(
+			fmt.Sprintf("starting crawl %d", crawl.ID),
+		)
+		err := crawl.Run(job, app)
+		if err != nil {
+			app.Log.Error(
+				fmt.Sprintf("error when processing crawl %d", crawl.ID),
+				slog.String(ErrorKey, err.Error()),
+				slog.Int("id", crawl.ID),
+			)
+		}
+	}
+
+	
 }

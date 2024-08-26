@@ -16,14 +16,19 @@ type App struct {
 	args []string
 
 	WorkDirFlag *string
+	DebugFLag *bool
 
 	Log *slog.Logger
 	// WorkDir string
 }
 
 func (app *App) initApp() error {
-	app.initLogger(os.Stdout, slog.LevelInfo)
-	app.Log.Info("app is inicializing", slog.String(CommandKey, app.cmd.Name()))
+	level := slog.LevelInfo
+	if *app.DebugFLag {
+		level = slog.LevelDebug
+	}
+	app.initLogger(os.Stdout, level)
+	app.Log.Debug("app is inicializing", slog.String(CommandKey, app.cmd.Name()))
 
 	if err := app.setWorkingDirectory(*app.WorkDirFlag); err != nil {
 		return err

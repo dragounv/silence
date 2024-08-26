@@ -51,7 +51,6 @@ Výstupy:
     - rozdělit semínka na x dílů podle konfigurace
     - inicializovat Harvest struktury
         - vytvořit pracovní adresář
-        - inicializovat FS
         - vytvořit crawler-beans.cxml
         - vytvořit seeds.txt
     - inicializace Heritrixu

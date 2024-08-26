@@ -23,6 +23,6 @@ func runApp(cmd *cobra.Command, args []string) {
 func init() {
 	rootCmd.AddCommand(runCmd)
 
-	workDirFlag := runCmd.Flags().String("work-dir", "", "Sets working directory")
-	app.WorkDirFlag = workDirFlag
+	app.WorkDirFlag = runCmd.Flags().String("work-dir", "", "Sets working directory")
+	app.DebugFLag = runCmd.Flags().BoolP("debug", "d", false, "Sets loging level to DEBUG")
 }

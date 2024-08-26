@@ -29,7 +29,7 @@ func Run(app *App) {
 
 	// TODO: Add locking mechanism to prevent two instances running at once.
 
-	app.Log.Info("app is inicialized")
+	app.Log.Debug("app is inicialized")
 
 	job, err := NewJob(app, DefaultJobConfigPath)
 	if err != nil {
@@ -38,9 +38,25 @@ func Run(app *App) {
 			slog.Int(StatusKey, ErrorStatus),
 			slog.String(ErrorKey, err.Error()),
 		)
+		os.Exit(ErrorStatus)
 	}
 
+	if job.Name == "" {
+		app.Log.Error(
+			"job name must be set",
+			slog.Int(StatusKey, ErrorStatus),
+		)
+		os.Exit(ErrorStatus)
+	}
 	app.Log.Info(fmt.Sprintf("job %s was inicialized", job.Name))
 
 	err = job.run(app)
+	if err != nil {
+		app.Log.Error(
+			"fatal error, exiting with error status",
+			slog.Int(StatusKey, ErrorStatus),
+			slog.String(ErrorKey, err.Error()),
+		)
+		os.Exit(ErrorStatus)
+	}
 }
