@@ -7,9 +7,10 @@ import (
 )
 
 const (
-	CommandKey = "command"
-	ErrorKey   = "error"
-	StatusKey  = "status"
+	CommandKey      = "command"
+	ErrorKey        = "error"
+	StatusKey       = "status"
+	ReturnStatusKey = "returnStatus"
 )
 
 const (

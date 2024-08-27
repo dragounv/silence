@@ -13,6 +13,8 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/icholy/digest"
 )
 
 type Job struct {
@@ -22,6 +24,8 @@ type Job struct {
 	TemplatePath   string
 	SeedsPath      string
 	CrawlerAddress string
+	CrawlerUsername string
+	CrawlerPassword string
 	MaxLines       int
 	MaxIterations  int
 	Config         *JobConfig
@@ -76,7 +80,12 @@ func (job *Job) initClient() {
 	// Heritrix uses self signed certificates, this is fine for now
 	heritrixTransport := http.DefaultTransport.(*http.Transport).Clone()
 	heritrixTransport.TLSClientConfig.InsecureSkipVerify = true
-	job.client = &http.Client{Transport: heritrixTransport}
+	digestTransport := &digest.Transport{
+		Username: job.CrawlerUsername,
+		Password: job.CrawlerPassword,
+		Transport: heritrixTransport,
+	}
+	job.client = &http.Client{Transport: digestTransport}
 }
 
 func (job *Job) run(app *App) error {
@@ -87,7 +96,7 @@ func (job *Job) run(app *App) error {
 
 	err = job.runCrawls(app)
 	if err != nil {
-		return
+		return err
 	}
 
 	return nil
@@ -145,7 +154,7 @@ func (job *Job) initCrawls(app *App) error {
 	const timestampFormat = "20060102150405"
 	timestamp := time.Now().Format(timestampFormat)
 	for i := 0; i < cap(crawls); i++ {
-		crawls = append(crawls, NewCrawl(i, timestamp, SeedsDirectory))
+		crawls = append(crawls, NewCrawl(i, timestamp, SeedsDirectory, job))
 	}
 
 	app.Log.Debug("", slog.Int("lines", lines), slog.Int("iterations", len(crawls)))
@@ -256,7 +265,7 @@ func (job *Job) runCrawls(app *App) error {
 		app.Log.Info(
 			fmt.Sprintf("starting crawl %d", crawl.ID),
 		)
-		err := crawl.Run(job, app)
+		err := crawl.Run(app)
 		if err != nil {
 			app.Log.Error(
 				fmt.Sprintf("error when processing crawl %d", crawl.ID),
@@ -266,5 +275,6 @@ func (job *Job) runCrawls(app *App) error {
 		}
 	}
 
-	
+	// ---
+	return nil
 }

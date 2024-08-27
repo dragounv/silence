@@ -2,7 +2,10 @@ module silence
 
 go 1.23.0
 
-require github.com/spf13/cobra v1.8.1
+require (
+	github.com/icholy/digest v0.1.23
+	github.com/spf13/cobra v1.8.1
+)
 
 require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
