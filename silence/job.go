@@ -38,6 +38,8 @@ const DefaultJobConfigPath = "job.json"
 
 const SeedsDirectory = "seeds_dir"
 
+const CrawlerBeansName = "crawler-beans.cxml"
+
 func NewJob(app *App, path string) (*Job, error) {
 	job := DefaultJob(path)
 
@@ -57,6 +59,14 @@ func NewJob(app *App, path string) (*Job, error) {
 			slog.String(ErrorKey, err.Error()),
 		)
 		return job, err
+	}
+
+	if job.TemplatePath == CrawlerBeansName {
+		err = fmt.Errorf("%s is invalid name for template", job.TemplatePath)
+		app.Log.Error(
+			fmt.Sprintf("template connot be named %s", CrawlerBeansName),
+			slog.String(ErrorKey, err.Error()),
+		)
 	}
 
 	job.initClient()
@@ -273,6 +283,7 @@ func (job *Job) runCrawls(app *App) error {
 				slog.Int("id", crawl.ID),
 			)
 		}
+		return err
 	}
 
 	// ---

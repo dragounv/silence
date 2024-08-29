@@ -40,11 +40,11 @@
 
 # Values changing with each crawl
 
-metadata.jobName={{.JobName}}
+metadata.jobName={{.CrawlName}}
 metadata.operator={{.Operator}}
 metadata.description={{.Description}}
-warcWriter.prefix={{.JobName}}
-warcWriter.storePaths=/mnt/archives/24/topics/{{.JobName}}
+warcWriter.prefix={{.CrawlName}}
+warcWriter.storePaths=/mnt/archives/24/topics/{{.CrawlName}}
 frontier.queueTotalBudget=20000
 
 
