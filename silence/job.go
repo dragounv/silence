@@ -2,7 +2,6 @@ package silence
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -20,15 +19,16 @@ import (
 type Job struct {
 	configPath string
 
-	Name           string
-	TemplatePath   string
-	SeedsPath      string
-	CrawlerAddress string
+	Name            string
+	TemplatePath    string
+	SeedsPath       string
+	CrawlerAddress  string
 	CrawlerUsername string
 	CrawlerPassword string
-	MaxLines       int
-	MaxIterations  int
-	Config         *JobConfig
+	MaxLines        int
+	MaxIterations   int
+	MaxWaitSeconds  int
+	Config          *JobConfig
 
 	client *http.Client
 	crawls []*Crawl
@@ -91,8 +91,8 @@ func (job *Job) initClient() {
 	heritrixTransport := http.DefaultTransport.(*http.Transport).Clone()
 	heritrixTransport.TLSClientConfig.InsecureSkipVerify = true
 	digestTransport := &digest.Transport{
-		Username: job.CrawlerUsername,
-		Password: job.CrawlerPassword,
+		Username:  job.CrawlerUsername,
+		Password:  job.CrawlerPassword,
 		Transport: heritrixTransport,
 	}
 	job.client = &http.Client{Transport: digestTransport}
@@ -193,21 +193,14 @@ func countLines(path string) (int, error) {
 	}
 	defer file.Close()
 
-	const bufferSize = 1 << 20
-	buffer := make([]byte, bufferSize)
+	scanner := bufio.NewScanner(file)
 	sum := 0
-	newline := []byte{'\n'}
-	for {
-		readBytes, err := file.Read(buffer)
-		if err == io.EOF {
-			buffer = buffer[:readBytes]
-			sum += bytes.Count(buffer, newline)
-			break
-		}
-		if err != nil {
-			return sum, err
-		}
-		sum += bytes.Count(buffer, newline)
+
+	for scanner.Scan() {
+		sum++
+	}
+	if scanner.Err() != nil {
+		return sum, err
 	}
 
 	return sum, nil
@@ -231,8 +224,8 @@ func (job *Job) createSeedFiles(crawls []*Crawl) error {
 		}
 		defer seedsBatch.Close()
 
-		// Only owner and group can write
-		err = seedsBatch.Chmod(0664)
+		// Only owner and group can write - or not
+		err = seedsBatch.Chmod(0666)
 		if err != nil {
 			err = fmt.Errorf("failed to change permissions to file %s with error: %w", crawl.SeedsFile, err)
 			return err
@@ -282,8 +275,8 @@ func (job *Job) runCrawls(app *App) error {
 				slog.String(ErrorKey, err.Error()),
 				slog.Int("id", crawl.ID),
 			)
+			return err
 		}
-		return err
 	}
 
 	// ---

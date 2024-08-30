@@ -19,14 +19,14 @@ type JobConfig struct {
 
 	seedsFile string
 	id        int
+	crawlType string
 }
 
 func (jc *JobConfig) CrawlName() string {
-	const crawlType = "Topics"
 	const delimiter = "-"
 	timestamp := time.Now().Format(time.DateOnly)
 	id := fmt.Sprintf("Part%d", jc.id)
-	return strings.Join([]string{crawlType, timestamp, jc.CrawlNameSuffix, id}, delimiter)
+	return strings.Join([]string{jc.crawlType, timestamp, jc.CrawlNameSuffix, id}, delimiter)
 }
 
 func (jc *JobConfig) SeedsFile() string {
